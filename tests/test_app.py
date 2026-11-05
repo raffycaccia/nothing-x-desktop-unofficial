@@ -143,6 +143,44 @@ def test_link_pump_reads_until_close(tmp_path):
     assert buds.state["battery"]["L"]["lvl"] == 42 and buds.state["anc"] == 5
 
 
+class ChanSock:
+    """Fake RFCOMM channel: a greeting, then canned replies to whatever is sent."""
+    def __init__(self, greeting=b"", reply=b""):
+        self.inbox = [greeting] if greeting else []
+        self.reply = reply
+    def settimeout(self, t): pass
+    def close(self): pass
+    def send(self, d): self.inbox.append(self.reply)
+    def recv(self, n):
+        if not self.inbox:
+            raise TimeoutError
+        return self.inbox.pop(0)
+
+
+def test_probe_accepts_only_battery_replies(monkeypatch):
+    from nothingx import link
+    chans = {16: ChanSock(reply=packet(0x4007, [1, 2, 100])),
+             17: ChanSock(greeting=bytes.fromhex("030100032b353e")),
+             29: ChanSock(greeting=b"CAPSENSOR" + bytes.fromhex("5560010740000001") * 2)}  # junk with a 0x55 inside
+    monkeypatch.setattr(link, "rfcomm", lambda mac, ch, t: chans.get(ch))
+    assert link.probe("AA", channels=[1, 29, 17, 16]) == {"sku": "2B353E", "ntapp": 16}
+    assert link.probe("AA", channels=[29]) == {}
+    assert link.hello(ChanSock(reply=packet(0xE001, [1, 2, 9]) + packet(0x4007, [1, 2, 9]))) is True  # push first
+
+
+def test_connect_revalidates_cached_channel(tmp_path, monkeypatch):
+    from nothingx import link
+    conf = tmp_path / "c.json"
+    conf.write_text('{"AA": {"ntapp": 29, "sku": "2B353E"}}')
+    chans = {16: lambda: ChanSock(reply=packet(0x4007, [1, 2, 100])), 29: lambda: ChanSock(greeting=b"junk")}
+    monkeypatch.setattr(link, "paired_devices", lambda: [("AA", "CMF Buds Pro 2")])
+    monkeypatch.setattr(link, "rfcomm", lambda mac, ch, t: chans[ch]() if ch in chans else None)
+    buds = Buds(str(conf), start=False)
+    s, model = buds.connect()
+    assert s is not None and model.name == "CMF Buds Pro 2"
+    assert json.loads(conf.read_text())["AA"]["ntapp"] == 16
+
+
 def test_main_version_flag(capsys):
     assert A.main(["--version"]) == 0
     assert "Nothing X Desktop" in capsys.readouterr().out

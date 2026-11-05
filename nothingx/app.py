@@ -75,10 +75,11 @@ def browser_cmd(size, hidden):
     if not exe:
         return None
     cmd = [exe, f"--app=http://127.0.0.1:{PORT}/", f"--window-size={size[0]},{size[1]}",
-           f"--user-data-dir={os.path.join(DATA, 'browser')}", "--no-first-run", "--disable-features=Translate",
-           "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"]
+           f"--user-data-dir={os.path.join(DATA, 'browser')}", "--no-first-run", "--no-default-browser-check",
+           "--disable-sync", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows",
+           "--disable-features=Translate,CalculateNativeWinOcclusion,msImplicitSignIn,msSyncOnboarding,msEdgeSyncPromo"]
     if sys.platform == "win32":
-        cmd += ["--disable-direct-composition", "--disable-features=Translate,CalculateNativeWinOcclusion"]
+        cmd.append("--disable-direct-composition")  # window regions do not apply to DirectComposition surfaces
     if hidden:
         cmd.append("--window-position=-4000,-4000")  # off-screen until the tray places it
     return cmd

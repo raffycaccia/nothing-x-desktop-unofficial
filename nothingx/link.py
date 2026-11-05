@@ -154,9 +154,25 @@ class _MacChannel:
 
 # ---------------------------------------------------------------- channel probe
 
+def hello(s):
+    """True when the channel answers a battery get with 0x4007: that is what makes it the NTAPP channel.
+    Other services greet with arbitrary bytes (some even contain 0x55), so parse() alone is not proof."""
+    try:
+        s.settimeout(1.5)
+        s.send(packet(0xC007))
+        buf = b""
+        for _ in range(3):
+            buf += s.recv(1024)
+            if any(cmd == 0x4007 for cmd, _ in parse(buf)[0]):
+                return True
+    except OSError:
+        pass
+    return False
+
+
 def probe(mac, channels=range(1, 31)):
     """Scan RFCOMM channels once -> {'ntapp': ch, 'sku': 'XXXXXX'}.
-    The FastPair channel greets with 7 bytes holding the SKU; the NTAPP channel answers a battery get."""
+    The FastPair channel greets with 7 bytes holding the SKU; the NTAPP channel answers hello()."""
     found = {}
     for ch in channels:
         s = rfcomm(mac, ch, 3)
@@ -170,11 +186,7 @@ def probe(mac, channels=range(1, 31)):
                 data = b""
             if len(data) == 7 and data[0] != 0x55:
                 found["sku"] = data[4:7].hex().upper()
-                continue
-            if not data:
-                s.send(packet(0xC007))
-                data = s.recv(1024)
-            if parse(data)[0]:  # NTAPP may also greet with a push packet
+            elif hello(s):
                 found["ntapp"] = ch
         except OSError:
             pass
@@ -221,6 +233,9 @@ class Buds:
         for mac, name in paired_devices():
             c = self.conf.get(mac, {})
             s = rfcomm(mac, c["ntapp"], 4) if "ntapp" in c else None
+            if s and not hello(s):  # cached channel no longer the right one
+                s.close()
+                s = None
             if not s and (c := probe(mac)).get("ntapp"):  # first run, or the channel moved
                 self.conf[mac] = c
                 os.makedirs(os.path.dirname(self.conf_path), exist_ok=True)
