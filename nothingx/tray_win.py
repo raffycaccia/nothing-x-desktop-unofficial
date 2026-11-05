@@ -28,6 +28,20 @@ gdi.CreateRoundRectRgn.restype = W.HRGN
 u32.SetWindowRgn.argtypes = [W.HWND, W.HRGN, W.BOOL]
 WM_TRAY, WM_LBUTTONUP, WM_RBUTTONUP = 0x8001, 0x0202, 0x0205
 HERE = os.path.dirname(os.path.abspath(__file__))
+AUMID = "NothingX.Desktop.Unofficial"
+
+
+def register_identity():
+    """Give our notifications the app's name and icon instead of "Python": an AppUserModelID for the process,
+    registered under HKCU so the toast shows DisplayName/IconUri. Best effort, never fatal."""
+    try:
+        C.windll.shell32.SetCurrentProcessExplicitAppUserModelID(C.c_wchar_p(AUMID))
+        import winreg
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"Software\Classes\AppUserModelId\{AUMID}") as k:
+            winreg.SetValueEx(k, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
+            winreg.SetValueEx(k, "IconUri", 0, winreg.REG_EXPAND_SZ, os.path.join(HERE, "icon.png"))
+    except OSError:
+        pass
 
 
 class WNDCLASSW(C.Structure):
@@ -87,6 +101,8 @@ class Tray:
         self.hidden_at = 0
         self.cap = 31     # Chromium title bar height in CSS px, until measured
         self.bar = None   # measured title bar height in device px
+        register_identity()
+        self.app_icon = u32.LoadImageW(None, os.path.join(HERE, "icon.ico"), 1, 64, 64, 0x10)  # for notifications
         self._proc = WNDPROC(self.wndproc)  # keep a reference or ctypes frees the callback
         wc = WNDCLASSW(lpfnWndProc=self._proc, lpszClassName="NothingXTray",
                        hInstance=C.windll.kernel32.GetModuleHandleW(None))
@@ -134,7 +150,8 @@ class Tray:
         """Windows notification from the tray icon (shown as a toast on Windows 10/11)."""
         self.nid.uFlags |= 0x10           # NIF_INFO
         self.nid.szInfoTitle, self.nid.szInfo = title[:63], text[:255]
-        self.nid.dwInfoFlags = 0x02 | 0x20  # NIIF_WARNING | NIIF_LARGE_ICON
+        self.nid.hBalloonIcon = self.app_icon
+        self.nid.dwInfoFlags = 0x04 | 0x20  # NIIF_USER (our icon) | NIIF_LARGE_ICON
         shell32.Shell_NotifyIconW(1, C.byref(self.nid))  # NIM_MODIFY
         self.nid.uFlags &= ~0x10          # later icon updates must not repeat the notification
 
