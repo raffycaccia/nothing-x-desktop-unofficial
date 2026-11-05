@@ -63,7 +63,8 @@ class Tray(Window):
             pystray.MenuItem("Quit", lambda: self.quit())))
 
     def watch(self):
-        ver = -1
+        from .app import LowBattery
+        ver, low_alert = -1, LowBattery()
         while True:
             with self.buds.cv:
                 self.buds.cv.wait_for(lambda: self.buds.ver != ver, timeout=5)
@@ -73,6 +74,12 @@ class Tray(Window):
                 self.icon.title = f"{name}: not connected"
                 continue
             bat = st.get("battery") or {}
+            if crossed := low_alert.check(bat, self.settings.get("low_battery")):
+                title, text = LowBattery.message(name, crossed, self.settings.get("lang"))
+                try:
+                    self.icon.notify(text, title)
+                except Exception:  # not every pystray backend supports notifications
+                    pass
             parts = [f"{k.upper() if k != 'case' else 'Case'} {b['lvl']}%{' +' if b['chg'] else ''}" for k, b in bat.items()]
             self.icon.title = f"{name}  " + "  ".join(parts)
 

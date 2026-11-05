@@ -112,7 +112,8 @@ class Tray:
 
     def watch(self):
         """Mirror battery into the tray icon and tooltip."""
-        ver = -1
+        from .app import LowBattery
+        ver, low_alert = -1, LowBattery()
         while True:
             with self.buds.cv:
                 self.buds.cv.wait_for(lambda: self.buds.ver != ver, timeout=5)
@@ -122,10 +123,20 @@ class Tray:
             if not st.get("connected"):
                 self.set_icon(None, f"{name}: not connected")
                 continue
+            if crossed := low_alert.check(bat, self.settings.get("low_battery")):
+                self.notify(*LowBattery.message(name, crossed, self.settings.get("lang")))
             parts = [f"{k.upper() if k != 'case' else 'Case'} {b['lvl']}%{' +' if b['chg'] else ''}" for k, b in bat.items()]
             low = min([b["lvl"] for k, b in bat.items() if k in ("L", "R")], default=None)
             text = str(min(low, 99)) if low is not None and self.settings.get("tray_battery") else None
             self.set_icon(text, f"{name}\n" + "  ".join(parts), red=low is not None and low <= self.settings.get("low_battery"))
+
+    def notify(self, title, text):
+        """Windows notification from the tray icon (shown as a toast on Windows 10/11)."""
+        self.nid.uFlags |= 0x10           # NIF_INFO
+        self.nid.szInfoTitle, self.nid.szInfo = title[:63], text[:255]
+        self.nid.dwInfoFlags = 0x02 | 0x20  # NIIF_WARNING | NIIF_LARGE_ICON
+        shell32.Shell_NotifyIconW(1, C.byref(self.nid))  # NIM_MODIFY
+        self.nid.uFlags &= ~0x10          # later icon updates must not repeat the notification
 
     def wndproc(self, hwnd, msg, wp, lp):
         if msg == WM_TRAY:

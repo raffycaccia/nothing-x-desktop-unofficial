@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Low-battery notification: one system notification per bud when it reaches the threshold set in
+  Settings, re-armed after charging.
+
 ## [0.1.1] - 2026-11-05
 
 ### Fixed

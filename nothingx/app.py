@@ -26,6 +26,38 @@ VALID = {"lang": lambda v: v in ("auto", "en", "it"), "low_battery": lambda v: i
          "tray_battery": lambda v: isinstance(v, bool)}
 
 
+class LowBattery:
+    """When to notify: once per bud when it drops to the threshold; re-armed when it charges or recovers 5 %."""
+    MSG = {"en": ("Low battery", "{name}: {parts}. Time to charge."),
+           "it": ("Batteria scarica", "{name}: {parts}. È ora di ricaricarle.")}
+    SIDE = {"en": {"L": "left {}%", "R": "right {}%"}, "it": {"L": "sinistra {}%", "R": "destra {}%"}}
+
+    def __init__(self):
+        self.alerted = set()
+
+    def check(self, battery, threshold):
+        """-> [(side, level)] that just crossed the threshold."""
+        out = []
+        for side, b in battery.items():
+            if side not in ("L", "R"):
+                continue
+            if b["chg"] or b["lvl"] > threshold + 5:
+                self.alerted.discard(side)
+            elif b["lvl"] <= threshold and side not in self.alerted:
+                self.alerted.add(side)
+                out.append((side, b["lvl"]))
+        return out
+
+    @classmethod
+    def message(cls, name, crossed, lang):
+        if lang not in cls.MSG:
+            import locale
+            lang = "it" if (locale.getlocale()[0] or "").lower().startswith("it") else "en"
+        title, body = cls.MSG[lang]
+        parts = ", ".join(cls.SIDE[lang][side].format(lvl) for side, lvl in crossed)
+        return title, body.format(name=name, parts=parts)
+
+
 class Settings:
     def __init__(self, path):
         self.path = path

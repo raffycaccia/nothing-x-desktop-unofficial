@@ -181,6 +181,19 @@ def test_connect_revalidates_cached_channel(tmp_path, monkeypatch):
     assert json.loads(conf.read_text())["AA"]["ntapp"] == 16
 
 
+def test_low_battery_notifies_once_and_rearms():
+    lb, b = A.LowBattery(), lambda lvl, chg=False: {"lvl": lvl, "chg": chg}
+    assert lb.check({"L": b(50), "R": b(40), "case": b(5)}, 20) == []        # case never alerts
+    assert lb.check({"L": b(20), "R": b(40)}, 20) == [("L", 20)]
+    assert lb.check({"L": b(15), "R": b(40)}, 20) == []                      # already told
+    assert lb.check({"L": b(22), "R": b(18)}, 20) == [("R", 18)]             # 22 is within the 5 % band: L stays armed-off
+    assert lb.check({"L": b(14, chg=True), "R": b(18)}, 20) == []            # charging re-arms L
+    assert lb.check({"L": b(14), "R": b(18)}, 20) == [("L", 14)]
+    title, text = A.LowBattery.message("CMF Buds Pro 2", [("L", 14), ("R", 18)], "it")
+    assert title == "Batteria scarica" and "sinistra 14%, destra 18%" in text
+    assert A.LowBattery.message("X", [("R", 9)], "en")[1] == "X: right 9%. Time to charge."
+
+
 def test_main_version_flag(capsys):
     assert A.main(["--version"]) == 0
     assert "Nothing X Desktop" in capsys.readouterr().out
