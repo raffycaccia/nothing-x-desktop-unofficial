@@ -76,10 +76,10 @@ app runs as a plain window instead. Tested in CI only: hardware reports are
 
 ### macOS (experimental)
 
-Unzip `NothingX-Desktop-unofficial-macos-*.zip`, move `NothingX.app` to Applications, right-click → Open the
+Apple Silicon: unzip `NothingX-Desktop-unofficial-macos-arm64.zip`, move `NothingX.app` to Applications, right-click → Open the
 first time (the app is not notarized). macOS will ask for Bluetooth permission.
 
-The macOS transport goes through IOBluetooth via pyobjc and was written without a Mac to test on. It may
+Intel Macs: install with pip (below). The macOS transport goes through IOBluetooth via pyobjc and was written without a Mac to test on. It may
 need fixes; please open an issue with what you see.
 
 ### From source / pip

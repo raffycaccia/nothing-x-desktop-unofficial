@@ -5,6 +5,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-05
+
+### Fixed
+- RFCOMM channel probing could cache a wrong channel when the real one was busy; a channel now has to
+  answer a battery get, and the cached channel is re-validated on every connect.
+- Popup: even 10 px margins (browser title bar measured, not estimated), no stray scrollbar on the main
+  view, no 1 px frame line, no duplicate browser launch, no Edge sync dialog.
+
+### Changed
+- Release builds: macOS Apple Silicon only (Intel Macs: install with pip).
+
 ## [0.1.0] - 2026-11-05
 
 ### Added
@@ -21,5 +32,6 @@ All notable changes to this project are documented here. The format follows
 - Linux (BlueZ) and macOS (IOBluetooth, experimental) transports; pystray status-bar icon.
 - GitHub Actions: tests on three platforms, PyInstaller builds attached to tagged releases.
 
-[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/releases/tag/v0.1.0

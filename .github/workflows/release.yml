@@ -21,12 +21,9 @@ jobs:
           - os: ubuntu-22.04
             name: linux-x64
             artifact: NothingX-Desktop-unofficial-linux-x64.tar.gz
-          - os: macos-latest
+          - os: macos-latest  # Apple Silicon; Intel Macs: pip install (macos-13 runners queue for too long)
             name: macos-arm64
             artifact: NothingX-Desktop-unofficial-macos-arm64.zip
-          - os: macos-13
-            name: macos-x64
-            artifact: NothingX-Desktop-unofficial-macos-x64.zip
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
