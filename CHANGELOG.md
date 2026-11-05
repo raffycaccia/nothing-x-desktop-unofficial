@@ -7,7 +7,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - Low-battery notification: one system notification per bud when it reaches the threshold set in
-  Settings, re-armed after charging.
+  Settings, re-armed after charging. Windows: toast with the app's name and icon; Linux: notify-send
+  (gdbus fallback); macOS: Notification Center. Works in plain-window mode too.
 
 ## [0.1.1] - 2026-11-05
 

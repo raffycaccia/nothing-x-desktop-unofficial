@@ -36,7 +36,7 @@ desktop, live.
 
 | | |
 |---|---|
-| **Battery** | Left, right and case, with charging and low-battery indication. On Windows the tray icon itself shows the lowest bud's percentage as a dot-matrix number. |
+| **Battery** | Left, right and case, with charging indication. On Windows the tray icon itself shows the lowest bud's percentage as a dot-matrix number. A system notification fires once per bud when it reaches your low-battery threshold. |
 | **Noise control** | Off, Transparency, ANC with Low / Mid / High / Adaptive levels. |
 | **Equalizer** | The presets of your model (Dirac Opteo, Pop, Rock, Classical, Electronic, Enhance vocals, Custom, or Balanced / More Bass / More Treble / Voice) and a **custom three-band equalizer** on a radial dial, like the phone app's "Simple" mode. |
 | **Sound** | Ultra Bass / Bass Enhance with levels, Spatial audio, Low latency, Smart ANC, Personalised ANC, Smart Free, codec. |
@@ -69,7 +69,8 @@ tar xzf NothingX-Desktop-unofficial-linux-x64.tar.gz
 nothingx
 ```
 
-Needs BlueZ (`bluetoothctl`) and a Chromium-based browser for the panel window. The status-bar icon uses
+Needs BlueZ (`bluetoothctl`), a Chromium-based browser for the panel window and, for low-battery
+notifications, `notify-send` (package `libnotify-bin` / `libnotify`). The status-bar icon uses
 [pystray](https://github.com/moses-palmer/pystray); on desktops without an AppIndicator/system tray the
 app runs as a plain window instead. Tested in CI only: hardware reports are
 [very welcome](../../issues/new?template=device_support.yml).

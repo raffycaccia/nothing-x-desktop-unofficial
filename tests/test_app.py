@@ -197,3 +197,32 @@ def test_low_battery_notifies_once_and_rearms():
 def test_main_version_flag(capsys):
     assert A.main(["--version"]) == 0
     assert "Nothing X Desktop" in capsys.readouterr().out
+
+
+def test_notify_commands_per_platform(monkeypatch):
+    from nothingx import tray_any
+    mac = tray_any.notify_cmd("Low battery", 'Buds "Pro": left 9%', platform="darwin")
+    assert mac[:2] == ["osascript", "-e"] and 'subtitle "Low battery"' in mac[2] and '\\"Pro\\"' in mac[2]
+    monkeypatch.setattr(tray_any.shutil, "which", lambda n: "/usr/bin/" + n if n == "notify-send" else None)
+    lin = tray_any.notify_cmd("Low battery", "left 9%", platform="linux")
+    assert lin[0] == "notify-send" and lin[lin.index("--app-name") + 1] == "Nothing X Desktop (unofficial)"
+    assert lin[lin.index("--icon") + 1].endswith("icon.png") and lin[-2:] == ["Low battery", "left 9%"]
+    monkeypatch.setattr(tray_any.shutil, "which", lambda n: "/usr/bin/gdbus" if n == "gdbus" else None)
+    assert tray_any.notify_cmd("t", "x", platform="linux")[:2] == ["gdbus", "call"]
+    monkeypatch.setattr(tray_any.shutil, "which", lambda n: None)
+    assert tray_any.notify_cmd("t", "x", platform="linux") is None
+
+
+def test_window_watch_notifies_on_low_battery(tmp_path, monkeypatch):
+    from nothingx import tray_any
+    sent = []
+    monkeypatch.setattr(tray_any, "notify", lambda title, text: sent.append((title, text)))
+    buds = Buds(str(tmp_path / "c.json"), start=False)
+    w = tray_any.Window(buds, A.Settings(str(tmp_path / "s.json")), lambda *a, **k: None, (1, 1))
+    threading.Thread(target=w.watch, daemon=True).start()
+    buds.update(connected=True, model={"name": "CMF Buds Pro 2"}, battery={"L": {"lvl": 12, "chg": False}})
+    for _ in range(50):
+        if sent:
+            break
+        import time; time.sleep(0.05)
+    assert len(sent) == 1 and "12%" in sent[0][1]
