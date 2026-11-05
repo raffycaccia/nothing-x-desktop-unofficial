@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nothing X Desktop (unofficial)</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* Nothing widget language: black canvas, #1b1b1b tiles, white + red accents, dot-matrix numerals. */
+  :root {
+    --bg: #000; --tile: #1b1b1b; --tile2: #262626; --fg: #f2f2f2; --dim: #8a8a8a; --off: #3a3a3a;
+    --white: #efefef; --red: #d71921; --r: 22px; --gap: 8px;
+    --dot: "Doto", "Space Mono", monospace; --mono: "Space Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--bg); overflow: hidden; }
+  body { color: var(--fg); font: 12px/1.35 var(--mono); user-select: none; }
+  [hidden] { display: none !important; }
+  .view { position: absolute; inset: 0; padding: 10px; display: flex; flex-direction: column; gap: var(--gap); overflow-y: auto;
+          scrollbar-width: thin; scrollbar-color: #3a3a3a transparent; }
+  .view::after { content: ""; display: block; flex: none; position: sticky; bottom: -10px; height: 36px; margin: -36px -10px -10px;
+                 background: linear-gradient(transparent, #000 80%); opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .view.more::after { opacity: 1; }
+  .hint { position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%); color: var(--dim); font-size: 9px; letter-spacing: 2px;
+          text-transform: uppercase; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .hint.on { opacity: 1; }
+  .pop .view:not([hidden]) { animation: rise .2s cubic-bezier(.2, .8, .2, 1); }
+  .view.enter { animation: slide .18s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+  @keyframes slide { from { opacity: 0; transform: translateX(16px); } }
+
+  .tile { background: var(--tile); border-radius: var(--r); padding: 12px 14px; flex: none; }
+  #v-main > .tile:first-child { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: space-between; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); flex: none; }
+  .label { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  a { color: var(--fg); }
+
+  /* battery widget */
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .head b { font: 900 15px/1 var(--dot); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .link { display: flex; align-items: center; gap: 6px; flex: none; }
+  .link i { width: 7px; height: 7px; border-radius: 50%; background: var(--off); }
+  .on .link i { background: var(--red); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .gear { width: 26px; height: 26px; border-radius: 50%; background: var(--tile2); display: grid; place-items: center; flex: none; }
+  .bat { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 10px; text-align: center; }
+  .bud { width: 14px; height: 30px; margin: 0 auto 6px; border-radius: 8px; background: var(--white); position: relative; }
+  .bud::after { content: ""; position: absolute; left: 6px; top: 6px; width: 2px; height: 12px; background: repeating-linear-gradient(#000 0 2px, transparent 2px 4px); }
+  .case { width: 34px; height: 24px; margin: 3px auto 9px; border-radius: 9px; border: 2px solid var(--white); }
+  .cell b { display: block; font: 900 24px/1 var(--dot); }
+  .cell b small { font-size: 12px; }
+  .cell.na b, .cell.na .bud, .cell.na .case { opacity: .25; }
+  .cell.low b { color: var(--red); }
+  .cell.chg .label::after { content: " +"; color: var(--red); }
+
+  /* noise control: round quick toggles */
+  .anc { display: flex; justify-content: space-around; }
+  .qt { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; }
+  .qt .c { width: 54px; height: 54px; border-radius: 50%; background: var(--white); color: #000; display: grid; place-items: center; transition: background .2s, color .2s, transform .1s; }
+  .qt:active .c { transform: scale(.94); }
+  .qt[aria-pressed="true"] .c { background: var(--red); color: #fff; }
+  .qt > span:last-child { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
+  .qt[aria-pressed="true"] > span:last-child { color: var(--fg); }
+  .lv { display: flex; gap: 4px; margin-top: 10px; background: #000; border-radius: 999px; padding: 3px; }
+  .lv button { flex: 1; min-height: 26px; border-radius: 999px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
+  .lv button[aria-pressed="true"] { background: var(--white); color: #000; }
+  .lv[aria-disabled="true"] { opacity: .3; pointer-events: none; }
+
+  /* navigation tiles */
+  .nav { display: flex; justify-content: space-between; align-items: center; text-align: left; width: 100%; min-height: 62px; }
+  .nav .big { font: 900 17px/1.1 var(--dot); text-transform: uppercase; margin-top: 4px; display: block; }
+  .chev { width: 28px; height: 28px; border-radius: 50%; background: var(--tile2); display: grid; place-items: center; flex: none; }
+
+  /* pill toggles (Nothing "Torch / Hotspot" widgets) */
+  .pill { display: flex; align-items: center; min-height: 50px; border-radius: 999px; padding: 0 18px; background: var(--white); color: #000; text-align: left; transition: background .2s, color .2s; }
+  .pill[aria-pressed="true"] { background: var(--red); color: #fff; }
+  .pill small { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; opacity: .65; }
+  .pill b { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+
+  /* sub views */
+  .bar { display: flex; align-items: center; gap: 10px; min-height: 36px; flex: none; }
+  .bar h2 { font: 900 17px var(--dot); text-transform: uppercase; letter-spacing: 1px; }
+  .back { width: 36px; height: 36px; border-radius: 50%; background: var(--tile); display: grid; place-items: center; }
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: none; }
+  .chips button { min-height: 32px; border-radius: 999px; background: var(--tile2); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .chips button[aria-pressed="true"] { background: var(--white); color: #000; }
+  .chips .custom { grid-column: 1 / -1; }
+  .chips .custom[aria-pressed="true"] { background: var(--red); color: #fff; }
+  .row { display: flex; justify-content: space-between; align-items: center; min-height: 40px; gap: 10px; }
+  .row + .row { border-top: 1px solid #2a2a2a; }
+  .row small { display: block; color: var(--dim); font-size: 10px; }
+  .sw { flex: none; width: 44px; height: 24px; border-radius: 999px; background: var(--off); position: relative; transition: background .2s; }
+  .sw::after { content: ""; position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; background: var(--dim); transition: left .2s, background .2s; }
+  .sw[aria-pressed="true"] { background: var(--red); }
+  .sw[aria-pressed="true"]::after { left: 24px; background: #fff; }
+  .lvl { display: flex; gap: 5px; margin-top: 8px; }
+  .lvl button { flex: 1; min-height: 30px; border-radius: 999px; background: var(--tile2); font: 900 13px var(--dot); }
+  .lvl button[aria-pressed="true"] { background: var(--white); color: #000; }
+  .lvl[aria-disabled="true"] { opacity: .3; pointer-events: none; }
+  select { font: 700 10px var(--mono); text-transform: uppercase; color: var(--fg); background: var(--tile2); border: 0; border-radius: 999px; padding: 7px 10px; max-width: 58%; cursor: pointer; }
+  .dialtile { position: relative; padding: 6px; }
+  .dialtile .mini { position: absolute; right: 12px; top: 12px; }
+  .graph { display: block; width: 100%; height: auto; touch-action: none; }
+  .graph .knob { cursor: ns-resize; }
+  .graph text { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+  .mini { min-height: 26px; padding: 0 12px; border-radius: 999px; background: var(--tile2); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .acts { display: flex; gap: 6px; margin-top: 8px; }
+  .acts button { flex: 1; min-height: 40px; border-radius: 999px; background: var(--white); color: #000; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .acts button[aria-pressed="true"] { background: var(--red); color: #fff; }
+  .acts button.dark { background: var(--tile2); color: var(--fg); }
+  .fit b { color: var(--fg); }
+  .fit b.bad { color: var(--red); }
+  .foot { color: var(--dim); font-size: 9px; text-align: center; letter-spacing: 1px; text-transform: uppercase; flex: none; }
+  .foot a { color: var(--dim); }
+  .off .ctl { opacity: .4; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-off" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 18 18 6" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-tr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2.2"/><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2.6"/></symbol>
+  <symbol id="i-anc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="currentColor"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+
+<!-- MAIN -->
+<main class="view" id="v-main">
+  <section class="tile" aria-label="Battery">
+    <div class="head">
+      <b id="name">Nothing</b>
+      <div class="link label"><i></i><span id="link" data-t="searching">Searching…</span></div>
+      <button class="gear" data-go="cfg" data-ta="settings" aria-label="Settings"><svg width="14" height="14"><use href="#i-gear"/></svg></button>
+    </div>
+    <div class="bat">
+      <div class="cell" id="b-L"><div class="bud"></div><b>--</b><span class="label" data-t="left">L</span></div>
+      <div class="cell" id="b-case"><div class="case"></div><b>--</b><span class="label" data-t="case">Case</span></div>
+      <div class="cell" id="b-R"><div class="bud"></div><b>--</b><span class="label" data-t="right">R</span></div>
+    </div>
+  </section>
+
+  <section class="tile ctl" data-f="anc" aria-label="Noise control">
+    <div class="anc" id="anc-mode">
+      <button class="qt" data-v="5"><span class="c"><svg width="22" height="22"><use href="#i-off"/></svg></span><span data-t="off">Off</span></button>
+      <button class="qt" data-v="7"><span class="c"><svg width="24" height="24"><use href="#i-tr"/></svg></span><span data-t="transp">Transp.</span></button>
+      <button class="qt" data-v="anc"><span class="c"><svg width="24" height="24"><use href="#i-anc"/></svg></span><span>ANC</span></button>
+    </div>
+    <div class="lv" id="anc-lvl">
+      <button data-v="3" data-t="low">Low</button><button data-v="2" data-t="mid">Mid</button><button data-v="1" data-t="high">High</button><button data-v="4" data-t="adaptive">Adaptive</button>
+    </div>
+  </section>
+
+  <button class="tile nav ctl" data-f="eq" data-go="eq">
+    <span><span class="label" data-t="equalizer">Equalizer</span><span class="big" id="eq-name">--</span></span>
+    <span class="chev"><svg width="16" height="16"><use href="#i-chev"/></svg></span>
+  </button>
+
+  <div class="grid ctl" data-any="bass spatial">
+    <button class="pill" data-f="bass" id="bass-pill"><span><b>Ultra Bass</b><small id="bass-sub">Off</small></span></button>
+    <button class="pill" data-f="spatial" data-sw="spatial"><span><b data-t="spatial">Spatial</b><small data-t="spatial_sub">3D audio</small></span></button>
+  </div>
+
+  <div class="grid">
+    <button class="tile nav ctl" data-go="gest" id="nav-gest"><span><span class="label" data-t="gestures">Gestures</span><span class="big" data-t="taps">Taps</span></span><span class="chev"><svg width="16" height="16"><use href="#i-chev"/></svg></span></button>
+    <button class="tile nav ctl" data-go="set"><span><span class="label" data-t="more">More</span><span class="big" data-t="options">Options</span></span><span class="chev"><svg width="16" height="16"><use href="#i-chev"/></svg></span></button>
+  </div>
+</main>
+
+<!-- EQUALIZER -->
+<section class="view" id="v-eq" hidden>
+  <div class="bar"><button class="back" data-go="main" data-ta="back" aria-label="Back"><svg width="18" height="18"><use href="#i-back"/></svg></button><h2 data-t="equalizer">Equalizer</h2></div>
+  <div class="tile dialtile" data-f="ceq">
+    <svg class="graph" id="graph" viewBox="0 0 320 250" aria-label="Custom equalizer: drag the points along their axes"></svg>
+    <button class="mini" id="ceq-reset" data-t="reset">Reset</button>
+  </div>
+  <div class="chips" id="eq"></div>
+  <div class="tile" data-f="bass">
+    <div class="row"><span>Ultra Bass</span><button class="sw" id="bass" aria-label="Ultra Bass"></button></div>
+    <div class="lvl" id="bass-lvl"></div>
+  </div>
+</section>
+
+<!-- GESTURES -->
+<section class="view" id="v-gest" hidden>
+  <div class="bar"><button class="back" data-go="main" data-ta="back" aria-label="Back"><svg width="18" height="18"><use href="#i-back"/></svg></button><h2 data-t="gestures">Gestures</h2></div>
+  <div class="tile"><div class="chips" id="g-side" style="grid-template-columns: repeat(3, 1fr)"></div><div id="g-list" style="margin-top:6px"></div></div>
+</section>
+
+<!-- MORE -->
+<section class="view" id="v-set" hidden>
+  <div class="bar"><button class="back" data-go="main" data-ta="back" aria-label="Back"><svg width="18" height="18"><use href="#i-back"/></svg></button><h2 data-t="more">More</h2></div>
+  <div class="tile" data-any="lowlat inear dual smart_anc personal_anc smart_free codec">
+    <div class="row" data-f="lowlat"><span data-t="lowlat">Low latency</span><button class="sw" data-sw="lowlat" data-ta="lowlat" aria-label="Low latency"></button></div>
+    <div class="row" data-f="inear"><span data-t="inear">In-ear detection</span><button class="sw" data-sw="inear" data-ta="inear" aria-label="In-ear detection"></button></div>
+    <div class="row" data-f="dual"><span data-t="dual">Dual connection</span><button class="sw" data-sw="dual" data-ta="dual" aria-label="Dual connection"></button></div>
+    <div class="row" data-f="smart_anc"><span data-t="smart_anc">Smart ANC</span><button class="sw" data-sw="smart_anc" data-ta="smart_anc" aria-label="Smart ANC"></button></div>
+    <div class="row" data-f="personal_anc"><span data-t="personal_anc">Personalised ANC</span><button class="sw" data-sw="personal_anc" data-ta="personal_anc" aria-label="Personalised ANC"></button></div>
+    <div class="row" data-f="smart_free"><span>Smart Free</span><button class="sw" data-sw="smart_free" aria-label="Smart Free"></button></div>
+    <div class="row" data-f="codec"><span data-t="codec">Codec (phone)</span>
+      <select id="codec" aria-label="Codec"><option value="0">AAC</option><option value="1">LHDC</option><option value="2">LDAC</option></select></div>
+  </div>
+  <div class="tile">
+    <span class="label" data-t="find">Find earbuds</span>
+    <div class="acts" id="ring"></div>
+    <div class="acts"><button class="dark" id="fit-btn" data-t="fit_test">Ear tip fit test</button></div>
+    <div class="fit label" id="fit" hidden style="margin-top:8px">L <b id="fit-L"></b> · R <b id="fit-R"></b></div>
+  </div>
+  <div class="foot" id="fw"></div>
+</section>
+
+<!-- SETTINGS -->
+<section class="view" id="v-cfg" hidden>
+  <div class="bar"><button class="back" data-go="main" data-ta="back" aria-label="Back"><svg width="18" height="18"><use href="#i-back"/></svg></button><h2 data-t="settings">Settings</h2></div>
+  <div class="tile">
+    <div class="row"><span data-t="language">Language</span>
+      <select id="cfg-lang" aria-label="Language"><option value="auto" data-t="auto">System</option><option value="en">English</option><option value="it">Italiano</option></select></div>
+    <div class="row"><span data-t="autostart">Launch at login</span><button class="sw" id="cfg-autostart" data-ta="autostart" aria-label="Launch at login"></button></div>
+    <div class="row" data-plat="win32"><span data-t="tray_battery">Battery level in the tray icon</span><button class="sw" id="cfg-tray_battery" data-ta="tray_battery" aria-label="Battery level in the tray icon"></button></div>
+    <div class="row"><span data-t="low_battery">Low battery warning</span>
+      <select id="cfg-low_battery" aria-label="Low battery warning"><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option><option value="30">30%</option></select></div>
+  </div>
+  <div class="tile">
+    <div class="row"><span><span data-t="device">Device</span><small id="cfg-dev">--</small></span></div>
+    <div class="row"><span>Nothing X Desktop (unofficial)<small id="cfg-ver"></small></span>
+      <a class="mini" style="display:grid;place-items:center;text-decoration:none" href="https://github.com/raffycaccia/nothing-x-desktop-unofficial" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+  <div class="acts"><button class="dark" id="quit" data-t="quit">Quit</button></div>
+  <div class="foot" data-t="disclaimer">Not affiliated with Nothing Technology Ltd.</div>
+</section>
+<div class="hint" id="hint" data-t="scroll">scroll ↓</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const post = (path, body) => fetch(path, { method: "POST", body: JSON.stringify(body || {}) });
+const send = (k, v) => post("/", { k, v });
+let st = {}, ui = { popup: true }, gdev = 2, modelKey = "";
+
+// ---- i18n
+const I18N = {
+  en: { searching: "Searching…", connected: "Connected", disconnected: "Not connected", left: "L", right: "R", case: "Case",
+    off: "Off", transp: "Transp.", low: "Low", mid: "Mid", high: "High", adaptive: "Adaptive", equalizer: "Equalizer",
+    spatial: "Spatial", spatial_sub: "3D audio", gestures: "Gestures", taps: "Taps", more: "More", options: "Options",
+    reset: "Reset", back: "Back", settings: "Settings", lowlat: "Low latency", inear: "In-ear detection", dual: "Dual connection",
+    smart_anc: "Smart ANC", personal_anc: "Personalised ANC", codec: "Codec (phone)", find: "Find earbuds", fit_test: "Ear tip fit test",
+    language: "Language", auto: "System", autostart: "Launch at login", tray_battery: "Battery level in the tray icon",
+    low_battery: "Low battery warning", device: "Device", quit: "Quit", scroll: "scroll ↓", level: "Level", ring: "Ring", ring_l: "Ring L",
+    ring_r: "Ring R", stop: "Stop", bass: "Bass", mids: "Mids", treble: "Treble", band: "Band", firmware: "Firmware",
+    fit: ["Good fit", "Adjust", "Not detected"], devs: { 2: "Left", 3: "Right", 4: "Case" },
+    gtypes: { 1: "Press", 2: "Double tap", 3: "Triple tap", 7: "Press and hold", 9: "Double tap and hold", 10: "Rotate" },
+    ctypes: { 2: "Double press", 3: "Triple press" }, call: "(call)",
+    actions: { 1: "None", 2: "Play / pause", 3: "Answer", 8: "Previous track", 9: "Next track", 11: "Voice assistant", 17: "Low latency",
+      18: "Volume +", 19: "Volume -", 22: "ANC / Transparency", 10: "ANC / Transp. / Off", 20: "Transp. / Off", 21: "ANC / Off",
+      23: "Volume", 25: "Answer / mute", 26: "Hang up / decline" }, action: "Action",
+    codec_warn: "Changing the codec reboots the earbuds. It only matters for phones: the desktop link stays on AAC/SBC. Continue?",
+    disclaimer: "Not affiliated with Nothing Technology Ltd." },
+  it: { searching: "Ricerca…", connected: "Connesse", disconnected: "Non connesse", left: "Sx", right: "Dx", case: "Case",
+    off: "Off", transp: "Trasp.", low: "Low", mid: "Mid", high: "High", adaptive: "Adatt.", equalizer: "Equalizzatore",
+    spatial: "Spaziale", spatial_sub: "Audio 3D", gestures: "Gesti", taps: "Tocchi", more: "Altro", options: "Opzioni",
+    reset: "Azzera", back: "Indietro", settings: "Impostazioni", lowlat: "Bassa latenza", inear: "Rilevamento in-ear", dual: "Doppia connessione",
+    smart_anc: "ANC intelligente", personal_anc: "ANC personalizzato", codec: "Codec (telefono)", find: "Trova auricolari", fit_test: "Test vestibilità",
+    language: "Lingua", auto: "Sistema", autostart: "Avvia all'accesso", tray_battery: "Batteria nell'icona della barra",
+    low_battery: "Avviso batteria scarica", device: "Dispositivo", quit: "Esci", scroll: "scorri ↓", level: "Livello", ring: "Fai suonare", ring_l: "Suona Sx",
+    ring_r: "Suona Dx", stop: "Stop", bass: "Bassi", mids: "Medi", treble: "Alti", band: "Banda", firmware: "Firmware",
+    fit: ["Ottima", "Da regolare", "Non rilevato"], devs: { 2: "Sinistra", 3: "Destra", 4: "Case" },
+    gtypes: { 1: "Pressione", 2: "Doppio tocco", 3: "Triplo tocco", 7: "Tieni premuto", 9: "Doppio tocco e tieni", 10: "Rotazione" },
+    ctypes: { 2: "Doppia pressione", 3: "Tripla pressione" }, call: "(chiamata)",
+    actions: { 1: "Nessuna", 2: "Play / pausa", 3: "Rispondi", 8: "Traccia prec.", 9: "Traccia succ.", 11: "Assistente vocale", 17: "Bassa latenza",
+      18: "Volume +", 19: "Volume -", 22: "ANC / Trasparenza", 10: "ANC / Trasp. / Off", 20: "Trasp. / Off", 21: "ANC / Off",
+      23: "Volume", 25: "Rispondi / muto", 26: "Chiudi / rifiuta" }, action: "Azione",
+    codec_warn: "Cambiare codec riavvia le cuffie. Vale solo per il telefono: il collegamento col PC resta AAC/SBC. Continuare?",
+    disclaimer: "Non affiliato a Nothing Technology Ltd." },
+};
+let L = I18N.en;
+const t = k => L[k] ?? I18N.en[k] ?? k;
+function setLang() {
+  const want = ui.lang === "auto" || !ui.lang ? (navigator.language || "en").slice(0, 2) : ui.lang;
+  L = I18N[want] || I18N.en;
+  document.documentElement.lang = L === I18N.it ? "it" : "en";
+  for (const el of $$("[data-t]")) el.textContent = t(el.dataset.t);
+  for (const el of $$("[data-ta]")) el.setAttribute("aria-label", t(el.dataset.ta));
+}
+
+// ---- gestures: [device, context, type, action]; codes from the official app / ear-web
+const BUD_OPTS = { 2: [2, 8, 9, 11, 1], 3: [8, 9, 11, 1], 7: [22, 10, 20, 21, 11, 1], 9: [18, 19, 11, 1] };
+const CASE_OPTS = { 1: [2, 9, 8, 11, 17, 1], 2: [2, 9, 8, 11, 17, 1], 3: [2, 9, 8, 11, 17, 1], 7: [22, 10, 20, 21, 11, 17, 1], 10: [23, 1] };
+const CALL_OPTS = { 2: [3, 25, 1], 3: [26, 1] };
+const BAND = { 0: "bass", 1: "mids", 2: "treble" };
+
+function press(sel, pred) { for (const b of $$(sel + " button")) b.setAttribute("aria-pressed", pred(b)); }
+
+function go(view) {
+  for (const v of $$(".view")) {
+    const show = v.id === "v-" + view;
+    if (show && v.hidden) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); v.scrollTop = 0; }
+    v.hidden = !show;
+  }
+  scrollHint();
+}
+
+function scrollHint() {  // fade + "scroll" hint while a view has more content below
+  const v = [...$$(".view")].find(v => !v.hidden); if (!v) return;
+  const more = v.scrollHeight - v.clientHeight - v.scrollTop > 8;
+  v.classList.toggle("more", more);
+  $("#hint").classList.toggle("on", more && v.scrollTop < 8);
+}
+document.addEventListener("scroll", scrollHint, true);
+window.addEventListener("resize", scrollHint);
+
+function buildModel(m) {
+  $("#name").textContent = m.name;
+  $("#cfg-dev").textContent = `${m.name} · ${m.base || "?"} · SKU ${m.sku || "?"}`;
+  $("#eq").innerHTML = m.eq.map(([v, x]) => `<button data-v="${v}"${/custom/i.test(x) ? ' class="custom"' : ""}>${x}</button>`).join("");
+  $("#bass-lvl").innerHTML = Array.from({ length: m.bass_levels }, (_, i) => `<button data-v="${i + 1}">${i + 1}</button>`).join("");
+  $("#ring").innerHTML = m.ring_single
+    ? `<button data-side="L" data-label="ring">${t("ring")}</button>`
+    : `<button data-side="L" data-label="ring_l">${t("ring_l")}</button><button data-side="R" data-label="ring_r">${t("ring_r")}</button>`;
+}
+
+function renderGestures() {
+  const all = (st.gestures || []).filter(g => L.devs[g[0]] && L.gtypes[g[2]]);
+  const devs = [...new Set(all.map(g => g[0]))].sort();
+  if (!devs.includes(gdev) && devs.length) gdev = devs[0];
+  $("#g-side").innerHTML = devs.map(d => `<button data-dev="${d}" aria-pressed="${d === gdev}">${L.devs[d]}</button>`).join("");
+  $("#g-list").innerHTML = all.filter(g => g[0] === gdev).map(([dev, ctx, type, action]) => {
+    const call = ctx === 9, isCase = dev === 4;
+    const name = (isCase && L.ctypes[type]) || L.gtypes[type];
+    const label = call ? name + " " + t("call") : name;
+    const base = (call ? CALL_OPTS : isCase ? CASE_OPTS : BUD_OPTS)[type] || [];
+    const opts = [...new Set([...base, action])];
+    return `<div class="row"><span>${label}</span><select data-ctx="${ctx}" data-type="${type}" aria-label="${label}">` +
+      opts.map(a => `<option value="${a}"${a === action ? " selected" : ""}>${L.actions[a] || t("action") + " " + a}</option>`).join("") +
+      `</select></div>`;
+  }).join("");
+}
+
+// ---- custom EQ dial, after Nothing X "Simple" equaliser: one radial axis per band (Bass left, Mids up,
+// Treble right), -6 dB near the centre to +6 dB at the rim, a glowing red shape joining the three knobs.
+const CX = 160, CY = 125, R = 100, R0 = 14, R1 = 88;
+const AXIS = { 0: 165, 1: -90, 2: 15 };          // filter type (0 low shelf, 1 peak, 2 high shelf) -> angle (deg, y down)
+const dir = ty => { const a = (AXIS[ty] ?? -90) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; };
+const rad = g => R0 + (g + 6) / 12 * (R1 - R0);
+let drag = null, draft = null, sel = 0;
+
+function knob(b) { const [dx, dy] = dir(b[0]), r = rad(b[1]); return [CX + dx * r, CY + dy * r]; }
+
+function blob(bands) {  // radius eased between neighbouring axes, all around the centre
+  const ax = bands.map(b => [((AXIS[b[0]] ?? -90) + 360) % 360, rad(b[1])]).sort((p, q) => p[0] - q[0]);
+  let d = "";
+  for (let a = 0; a < 360; a += 3) {
+    let i = ax.findIndex(p => p[0] > a); if (i < 0) i = 0;
+    const [a1, r1] = ax[i], [a0, r0] = ax[(i - 1 + ax.length) % ax.length];
+    const span = (a1 - a0 + 360) % 360 || 360, k = ((a - a0 + 360) % 360) / span;
+    const r = r0 + (r1 - r0) * (1 - Math.cos(k * Math.PI)) / 2, rr = a * Math.PI / 180;
+    d += (d ? "L" : "M") + (CX + Math.cos(rr) * r).toFixed(1) + " " + (CY + Math.sin(rr) * r).toFixed(1);
+  }
+  return d + "Z";
+}
+
+function renderCeq(isCustom) {
+  const bands = draft || st.ceq;
+  if (!bands) return;
+  let svg = `<defs><radialGradient id="glow"><stop offset="0" stop-color="#d71921" stop-opacity=".05"/><stop offset=".75" stop-color="#d71921" stop-opacity=".35"/><stop offset="1" stop-color="#d71921" stop-opacity=".75"/></radialGradient></defs>`;
+  svg += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="#262626"/>`;
+  svg += `<path d="${blob(bands)}" fill="url(#glow)" stroke="#d71921" stroke-opacity=".6" opacity="${isCustom ? 1 : .35}"/>`;
+  for (const b of bands) {
+    const [dx, dy] = dir(b[0]);
+    for (let g = -6; g <= 6; g += 2) svg += `<circle cx="${CX + dx * rad(g)}" cy="${CY + dy * rad(g)}" r="1.4" fill="#6a6a6a"/>`;
+  }
+  svg += `<circle cx="${CX}" cy="${CY}" r="7" fill="#000"/>`;
+  bands.forEach((b, i) => {
+    const [x, y] = knob(b), [dx, dy] = dir(b[0]), on = i === sel && isCustom;
+    const lx = CX + dx * (R + 2), ly = CY + dy * (R + 2) + (dy < -.5 ? -6 : 14);
+    svg += `<text x="${lx}" y="${ly}" text-anchor="middle" fill="${on ? "#d71921" : "#8a8a8a"}">${t(BAND[b[0]] || "band")} ${b[1] > 0 ? "+" : ""}${Math.round(b[1])}</text>`;
+    svg += `<circle class="knob" data-i="${i}" cx="${x}" cy="${y}" r="10" fill="${on ? "#d71921" : "#efefef"}" stroke="#000" stroke-width="2"/>`;
+  });
+  const v = bands[sel] ? Math.round(bands[sel][1]) : 0;
+  svg += `<text x="${CX}" y="${CY + 62}" text-anchor="middle" style="font:900 32px var(--dot)" fill="${isCustom ? "#d71921" : "#5a5a5a"}">${v > 0 ? "+" : ""}${v}</text>`;
+  $("#graph").innerHTML = svg;
+}
+
+function customPreset() { const c = ((st.model && st.model.eq) || []).find(([, x]) => /custom/i.test(x)); return c && c[0]; }
+function sendCeq(bands) {
+  const c = customPreset();
+  if (c !== undefined && st.eq !== c) send("eq", c);
+  send("ceq", bands);
+}
+$("#graph").addEventListener("pointerdown", e => {
+  const k = e.target.closest(".knob"); if (!k) return;
+  drag = sel = +k.dataset.i; draft = st.ceq.map(b => [...b]);
+  $("#graph").setPointerCapture(e.pointerId);
+  renderCeq(true);
+});
+$("#graph").addEventListener("pointermove", e => {
+  if (drag === null) return;
+  const r = $("#graph").getBoundingClientRect(), s = 320 / r.width;
+  const px = (e.clientX - r.left) * s - CX, py = (e.clientY - r.top) * s - CY, [dx, dy] = dir(draft[drag][0]);
+  const along = px * dx + py * dy;  // project the pointer on the band's axis
+  draft[drag][1] = Math.max(-6, Math.min(6, Math.round((along - R0) / (R1 - R0) * 12 - 6)));
+  renderCeq(true);
+});
+$("#graph").addEventListener("pointerup", () => {
+  if (drag === null) return;
+  const bands = draft; drag = null;
+  sendCeq(bands);
+  setTimeout(() => { draft = null; render(); }, 600);  // keep the dragged shape until the buds echo it back
+});
+$("#ceq-reset").onclick = () => sendCeq(st.ceq.map(b => [b[0], 0, b[2], b[3]]));
+
+// ---- render
+function render() {
+  document.body.classList.toggle("on", !!st.connected);
+  document.body.classList.toggle("off", !st.connected);
+  $("#link").textContent = t(st.connected ? "connected" : "disconnected");
+  const m = st.model;
+  if (m && m.name + m.eq.length + L.ring !== modelKey) { modelKey = m.name + m.eq.length + L.ring; buildModel(m); }
+  for (const el of $$("[data-f]")) el.hidden = !(el.dataset.f in st);
+  for (const el of $$("[data-any]")) el.hidden = !el.dataset.any.split(" ").some(k => k in st);
+  for (const el of $$("[data-plat]")) el.hidden = el.dataset.plat !== ui.platform;
+  $("#nav-gest").hidden = !(st.gestures && st.gestures.length);
+
+  for (const side of ["L", "case", "R"]) {
+    const cell = $("#b-" + side), b = st.battery && st.battery[side];
+    cell.className = "cell" + (b ? (b.chg ? " chg" : "") + (b.lvl <= (ui.low_battery || 20) ? " low" : "") : " na");
+    cell.querySelector("b").innerHTML = b ? `${b.lvl}<small>%</small>` : "--";
+  }
+  const anc = st.anc, isAnc = [1, 2, 3, 4].includes(anc);
+  for (const b of $$("#anc-mode .qt")) b.setAttribute("aria-pressed", b.dataset.v === "anc" ? isAnc : +b.dataset.v === anc);
+  $("#anc-lvl").setAttribute("aria-disabled", !isAnc);
+  press("#anc-lvl", b => +b.dataset.v === anc);
+
+  const preset = (m && m.eq || []).find(([v]) => v === st.eq);
+  $("#eq-name").textContent = preset ? preset[1] : "--";
+  press("#eq", b => +b.dataset.v === st.eq);
+  if (drag === null) renderCeq(!!(preset && /custom/i.test(preset[1])));
+
+  const bass = st.bass || { on: false, lvl: 0 };
+  $("#bass").setAttribute("aria-pressed", bass.on);
+  $("#bass-pill").setAttribute("aria-pressed", bass.on);
+  $("#bass-sub").textContent = bass.on ? t("level") + " " + bass.lvl : t("off");
+  $("#bass-lvl").setAttribute("aria-disabled", !bass.on);
+  press("#bass-lvl", b => bass.on && +b.dataset.v === bass.lvl);
+  for (const b of $$("[data-sw]")) b.setAttribute("aria-pressed", !!st[b.dataset.sw]);
+  if (document.activeElement !== $("#codec") && "codec" in st) $("#codec").value = st.codec;
+  if (!document.activeElement || document.activeElement.tagName !== "SELECT") renderGestures();
+  if (st.fit) {
+    $("#fit").hidden = false;
+    for (const s of ["L", "R"]) { const e = $("#fit-" + s); e.textContent = L.fit[st.fit[s]] || "?"; e.className = st.fit[s] ? "bad" : ""; }
+  }
+  $("#fw").textContent = st.fw ? t("firmware") + " " + st.fw : "";
+
+  // settings
+  $("#cfg-lang").value = ui.lang || "auto";
+  $("#cfg-autostart").setAttribute("aria-pressed", !!ui.autostart);
+  $("#cfg-tray_battery").setAttribute("aria-pressed", !!ui.tray_battery);
+  $("#cfg-low_battery").value = ui.low_battery || 20;
+  $("#cfg-ver").textContent = ui.version ? "v" + ui.version : "";
+  scrollHint();
+}
+
+// ---- events
+document.addEventListener("click", e => { const g = e.target.closest("[data-go]"); if (g) go(g.dataset.go); });
+$("#anc-mode").onclick = e => {
+  const b = e.target.closest(".qt"); if (!b) return;
+  send("anc", b.dataset.v === "anc" ? ([1, 2, 3, 4].includes(st.anc) ? st.anc : 1) : +b.dataset.v);
+};
+$("#anc-lvl").onclick = e => e.target.dataset.v && send("anc", +e.target.dataset.v);
+$("#eq").onclick = e => e.target.dataset.v && send("eq", +e.target.dataset.v);
+const toggleBass = () => send("bass", { on: !(st.bass && st.bass.on), lvl: (st.bass && st.bass.lvl) || 1 });
+$("#bass").onclick = toggleBass;
+$("#bass-pill").onclick = toggleBass;
+$("#bass-lvl").onclick = e => e.target.dataset.v && send("bass", { on: true, lvl: +e.target.dataset.v });
+for (const b of $$("[data-sw]")) b.onclick = () => send(b.dataset.sw, !st[b.dataset.sw]);
+$("#codec").onchange = e => {
+  if (confirm(t("codec_warn"))) send("codec", +e.target.value);
+  else e.target.value = st.codec;
+  e.target.blur();
+};
+$("#g-side").onclick = e => { const b = e.target.closest("button"); if (b) { gdev = +b.dataset.dev; renderGestures(); } };
+$("#g-list").onchange = e => {
+  send("gesture", { dev: gdev, ctx: +e.target.dataset.ctx, type: +e.target.dataset.type, action: +e.target.value });
+  e.target.blur();
+};
+$("#ring").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const on = b.getAttribute("aria-pressed") !== "true";
+  b.setAttribute("aria-pressed", on);
+  b.textContent = on ? t("stop") : t(b.dataset.label);
+  send("ring", { side: b.dataset.side, on });
+};
+$("#fit-btn").onclick = () => { $("#fit").hidden = false; $("#fit-L").textContent = $("#fit-R").textContent = "…"; send("fit", 1); };
+const cfg = (k, v) => post("/settings", { [k]: v });
+$("#cfg-lang").onchange = e => cfg("lang", e.target.value);
+$("#cfg-autostart").onclick = () => cfg("autostart", !ui.autostart);
+$("#cfg-tray_battery").onclick = () => cfg("tray_battery", !ui.tray_battery);
+$("#cfg-low_battery").onchange = e => cfg("low_battery", +e.target.value);
+$("#quit").onclick = () => post("/quit");
+
+window.addEventListener("blur", () => { if (ui.popup && !document.hasFocus()) post("/hide"); });
+const reportFrame = () => post("/frame", { cap: window.outerHeight - window.innerHeight });
+window.addEventListener("focus", () => { document.body.classList.remove("pop"); void document.body.offsetWidth; document.body.classList.add("pop"); reportFrame(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if ($("#v-main").hidden) go("main"); else if (ui.popup) post("/hide");
+});
+
+new EventSource("/events").onmessage = e => {
+  const d = JSON.parse(e.data);
+  ui = d.ui || ui; delete d.ui; st = d;
+  setLang(); render();
+};
+setLang(); render(); reportFrame();
+</script>
+</body>
+</html>

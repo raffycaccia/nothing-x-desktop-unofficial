@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Nothing X Desktop (unofficial)
+Comment=Control Nothing and CMF earbuds
+Exec=nothingx
+Icon=nothingx
+Terminal=false
+Categories=AudioVideo;Audio;Settings;
+Keywords=nothing;cmf;earbuds;bluetooth;anc;

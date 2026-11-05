@@ -1,0 +1,25 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-11-05
+
+### Added
+- Tray icon with live battery digits (Windows) and a borderless popup panel in the Nothing widget style.
+- Battery for left, right and case; charging and low-battery indication.
+- Noise control: off, transparency, ANC low / mid / high / adaptive.
+- Equalizer presets per model and a custom equalizer with a three-band radial dial.
+- Ultra Bass, spatial audio, low latency, in-ear detection, dual connection, smart ANC, personalised ANC,
+  Smart Free and codec, each shown only when the earbuds support it.
+- Gestures for left, right and the case dial, including in-call actions.
+- Find earbuds and ear tip fit test.
+- Settings: language (English, Italian), launch at login, tray battery digits, low-battery threshold.
+- Model table for 76 SKUs (22 model bases) of Nothing and CMF products.
+- Linux (BlueZ) and macOS (IOBluetooth, experimental) transports; pystray status-bar icon.
+- GitHub Actions: tests on three platforms, PyInstaller builds attached to tagged releases.
+
+[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/releases/tag/v0.1.0

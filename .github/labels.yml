@@ -1,0 +1,55 @@
+# Synced to the repository by .github/workflows/labels.yml
+- name: bug
+  color: d73a4a
+  description: Something is not working
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+- name: question
+  color: d876e3
+  description: Further information is requested
+- name: duplicate
+  color: cfd3d7
+  description: This issue or pull request already exists
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on
+- name: needs-info
+  color: fbca04
+  description: Waiting for details from the reporter
+- name: device-support
+  color: e99695
+  description: A new earbuds model or a model-specific behaviour
+- name: protocol
+  color: 5319e7
+  description: Bluetooth protocol, commands, decoders
+- name: ui
+  color: f9d0c4
+  description: Panel look, layout, interaction
+- name: platform:windows
+  color: 0e8a16
+  description: Windows-specific
+- name: platform:linux
+  color: 0e8a16
+  description: Linux-specific
+- name: platform:macos
+  color: 0e8a16
+  description: macOS-specific
+- name: build
+  color: c2e0c6
+  description: Packaging, CI, releases
+- name: security
+  color: b60205
+  description: Security-relevant
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates

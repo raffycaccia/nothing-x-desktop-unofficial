@@ -1,0 +1,47 @@
+name: Device support
+description: Report how the app behaves with a model that is not marked as verified
+labels: [device-support]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Only the CMF Buds Pro 2 have been tested on real hardware. Reports for any other model, working or not,
+        move it to the verified list. See [docs/PROTOCOL.md](../blob/main/docs/PROTOCOL.md) for what to look for.
+  - type: input
+    id: device
+    attributes:
+      label: Earbuds model and firmware
+      placeholder: Nothing Ear (a), firmware 1.0.6.3 (shown at the bottom of the "More" page)
+    validations:
+      required: true
+  - type: input
+    id: sku
+    attributes:
+      label: Base code / SKU
+      description: Settings page, "Device" row
+      placeholder: B172 / 2B353E
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows 11, Windows 10, Linux, macOS]
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works
+      options:
+        - label: Connects and shows battery
+        - label: Noise control
+        - label: Equalizer presets
+        - label: Custom equalizer
+        - label: Ultra Bass / bass enhance
+        - label: Gestures
+        - label: Find earbuds
+        - label: In-ear detection / low latency / dual connection toggles
+  - type: textarea
+    id: notes
+    attributes:
+      label: What is wrong or missing
+      description: Labels that do not match the official app, controls that do nothing, features the app has and this does not.
