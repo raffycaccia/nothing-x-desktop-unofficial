@@ -1,0 +1,4 @@
+# Keep LF in the repository and in checkouts: shell scripts and .desktop files break with CRLF.
+* text=auto eol=lf
+*.ico binary
+*.png binary

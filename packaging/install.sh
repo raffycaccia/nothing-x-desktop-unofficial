@@ -9,4 +9,4 @@ install -m 644 "$here/icon.png" "$icons/nothingx.png"
 sed "s|^Exec=.*|Exec=$bin/nothingx|" "$here/nothingx.desktop" > "$apps/nothingx.desktop"
 command -v update-desktop-database >/dev/null && update-desktop-database "$apps" || true
 echo "Installed. Run: $bin/nothingx  (make sure ~/.local/bin is on your PATH)"
-echo "Needs: bluez (bluetoothctl) and a Chromium-based browser for the panel window."
+echo "Needs: bluez (bluetoothctl), a Chromium-based browser for the panel window, notify-send (libnotify) for alerts."
