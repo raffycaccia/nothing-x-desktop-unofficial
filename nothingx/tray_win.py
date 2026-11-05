@@ -82,9 +82,11 @@ class Tray:
     def __init__(self, buds, settings, browser_cmd, size):
         self.buds, self.settings, self.browser_cmd, self.size = buds, settings, browser_cmd, size
         self.proc = None
+        self.launching = threading.Lock()  # warm-up and a click can race to spawn the browser
         self.hwnd_popup = None
         self.hidden_at = 0
-        self.cap = 31  # Chromium title bar height in CSS px; the page reports the real one
+        self.cap = 31     # Chromium title bar height in CSS px, until measured
+        self.bar = None   # measured title bar height in device px
         self._proc = WNDPROC(self.wndproc)  # keep a reference or ctypes frees the callback
         wc = WNDCLASSW(lpfnWndProc=self._proc, lpszClassName="NothingXTray",
                        hInstance=C.windll.kernel32.GetModuleHandleW(None))
@@ -179,16 +181,20 @@ class Tray:
         dwm.DwmSetWindowAttribute(h, 2, C.byref(C.c_int(1)), 4)  # NCRENDERING_POLICY=DISABLED: region applies
 
     def launch(self):
-        cmd = self.browser_cmd(self.size, hidden=True)
-        if not cmd:
-            u32.MessageBoxW(None, "No Chromium-based browser found (Edge, Chrome, Chromium or Brave).", APP_NAME, 0x10)
-            return None
-        self.proc = subprocess.Popen(cmd)
-        for _ in range(100):
-            time.sleep(0.1)
+        with self.launching:
             if h := self.find_popup():
                 return h
-        return None
+            if not (self.proc and self.proc.poll() is None):  # not already starting
+                cmd = self.browser_cmd(self.size, hidden=True)
+                if not cmd:
+                    u32.MessageBoxW(None, "No Chromium-based browser found (Edge, Chrome, Chromium or Brave).", APP_NAME, 0x10)
+                    return None
+                self.proc = subprocess.Popen(cmd)
+            for _ in range(100):
+                time.sleep(0.1)
+                if h := self.find_popup():
+                    return h
+            return None
 
     def place(self, h):
         """Put the page (w x h CSS px) above the tray icon; push the browser title bar up and clip it off."""
@@ -197,7 +203,7 @@ class Tray:
         work = W.RECT()
         u32.SystemParametersInfoW(0x30, 0, C.byref(work), 0)  # SPI_GETWORKAREA
         hgt = min(round(self.size[1] * dpr), work.bottom - work.top - 2 * gap)
-        top = round(self.cap * dpr)
+        top = self.bar if self.bar is not None else round(self.cap * dpr)
         icon = W.RECT()
         nii = NOTIFYICONIDENTIFIER(cbSize=C.sizeof(NOTIFYICONIDENTIFIER), hWnd=self.hwnd, uID=1)
         if shell32.Shell_NotifyIconGetRect(C.byref(nii), C.byref(icon)) == 0 and icon.right > 0:
@@ -219,19 +225,27 @@ class Tray:
                 break
             ox, oy, dx, dy = new
         rad = round(22 * dpr)
-        box = (ox, oy + top, ox + w + 1, oy + top + hgt + 1)
+        box = (ox + 1, oy + top, ox + w, oy + top + hgt)  # 1 px in: Chromium app windows draw a light border inside the client area
 
         def clip():
             u32.SetWindowRgn(h, gdi.CreateRoundRectRgn(*box, rad, rad), True)
         clip()
         threading.Timer(0.25, clip).start()  # Chromium resets the region after it handles the resize
 
-    def set_cap(self, cap):
-        """The page reports outerHeight - innerHeight: the browser's title bar height."""
-        if 0 < cap < 80 and cap != self.cap:
+    def set_cap(self, cap, inner=0):
+        """The page reports its viewport height: title bar = client area height - viewport height, exact in
+        device pixels. cap (outerHeight - innerHeight) is the fallback before any window exists."""
+        h = self.find_popup()
+        if h and inner:
+            c = W.RECT()
+            u32.GetClientRect(h, C.byref(c))
+            bar = c.bottom - round(inner * (u32.GetDpiForWindow(h) / 96 or 1))
+            if 0 <= bar < 120 and bar != self.bar:
+                self.bar = bar
+                if u32.IsWindowVisible(h):
+                    self.place(h)
+        elif 0 < cap < 80:
             self.cap = cap
-            if (h := self.find_popup()) and u32.IsWindowVisible(h):
-                self.place(h)
 
     def show(self):
         h = self.find_popup() or self.launch()

@@ -141,7 +141,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/quit":
                 threading.Timer(0.2, self.tray.quit).start()
             elif self.path == "/frame":
-                self.tray.set_cap(float(msg["cap"]))
+                self.tray.set_cap(float(msg["cap"]), float(msg.get("inner", 0)))
             elif self.path == "/settings":
                 for k, v in msg.items():
                     if k == "autostart":

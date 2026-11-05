@@ -18,8 +18,11 @@
   html, body { height: 100%; background: var(--bg); overflow: hidden; }
   body { color: var(--fg); font: 12px/1.35 var(--mono); user-select: none; }
   [hidden] { display: none !important; }
-  .view { position: absolute; inset: 0; padding: 10px; display: flex; flex-direction: column; gap: var(--gap); overflow-y: auto;
-          scrollbar-width: thin; scrollbar-color: #3a3a3a transparent; }
+  .view { position: absolute; inset: 0; padding: 10px; display: flex; flex-direction: column; gap: var(--gap); overflow-y: auto; }
+  .view::-webkit-scrollbar { width: 4px; }
+  .view::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
+  .view::-webkit-scrollbar-track { background: transparent; }
+  #v-main { overflow: hidden; }  /* designed to fit the popup: the battery tile absorbs any slack */
   .view::after { content: ""; display: block; flex: none; position: sticky; bottom: -10px; height: 36px; margin: -36px -10px -10px;
                  background: linear-gradient(transparent, #000 80%); opacity: 0; transition: opacity .2s; pointer-events: none; }
   .view.more::after { opacity: 1; }
@@ -32,7 +35,7 @@
   @keyframes slide { from { opacity: 0; transform: translateX(16px); } }
 
   .tile { background: var(--tile); border-radius: var(--r); padding: 12px 14px; flex: none; }
-  #v-main > .tile:first-child { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: space-between; }
+  #v-main > .tile:first-child { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); flex: none; }
   .label { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
@@ -503,7 +506,8 @@ $("#cfg-low_battery").onchange = e => cfg("low_battery", +e.target.value);
 $("#quit").onclick = () => post("/quit");
 
 window.addEventListener("blur", () => { if (ui.popup && !document.hasFocus()) post("/hide"); });
-const reportFrame = () => post("/frame", { cap: window.outerHeight - window.innerHeight });
+const reportFrame = () => post("/frame", { cap: window.outerHeight - window.innerHeight, inner: window.innerHeight });
+window.addEventListener("resize", reportFrame);
 window.addEventListener("focus", () => { document.body.classList.remove("pop"); void document.body.offsetWidth; document.body.classList.add("pop"); reportFrame(); });
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;

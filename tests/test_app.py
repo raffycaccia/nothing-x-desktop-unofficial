@@ -21,7 +21,7 @@ class FakeTray:
     def hide(self): self.calls.append("hide")
     def show(self): self.calls.append("show")
     def quit(self): self.calls.append("quit")
-    def set_cap(self, cap): self.calls.append(("cap", cap))
+    def set_cap(self, cap, inner=0): self.calls.append(("cap", cap))
 
 
 class FakeSock:

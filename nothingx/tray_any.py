@@ -35,7 +35,7 @@ class Window:
     def hide(self):
         pass
 
-    def set_cap(self, cap):
+    def set_cap(self, cap, inner=0):
         pass
 
     def quit(self):
