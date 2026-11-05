@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-06
+
 ### Added
 - Low-battery notification: one system notification per bud when it reaches the threshold set in
   Settings, re-armed after charging. Windows: toast with the app's name and icon; Linux: notify-send
@@ -20,6 +22,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 - Release builds: macOS Apple Silicon only (Intel Macs: install with pip).
+- CI tests a single Python version on macOS.
 
 ## [0.1.0] - 2026-11-05
 
@@ -37,6 +40,7 @@ All notable changes to this project are documented here. The format follows
 - Linux (BlueZ) and macOS (IOBluetooth, experimental) transports; pystray status-bar icon.
 - GitHub Actions: tests on three platforms, PyInstaller builds attached to tagged releases.
 
-[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/releases/tag/v0.1.0
