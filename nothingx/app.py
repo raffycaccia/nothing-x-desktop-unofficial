@@ -5,6 +5,7 @@ import shutil
 import sys
 import threading
 import urllib.request
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import APP_NAME, __version__, autostart
@@ -13,6 +14,7 @@ from .link import Buds
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = 47816
 POPUP_SIZE = (380, 500)  # CSS px
+OPEN_ALLOWED = ("https://github.com/raffycaccia/nothing-x-desktop-unofficial",)  # /open accepts only these
 
 if sys.platform == "win32":
     DATA = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "NothingX")
@@ -170,6 +172,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.tray.hide()
             elif self.path == "/show":
                 self.tray.show()
+            elif self.path == "/open":  # links open in the user's default browser, not in the panel's
+                url = str(msg["url"])
+                if not url.startswith(OPEN_ALLOWED):
+                    return self.reply(400)
+                webbrowser.open(url)
             elif self.path == "/quit":
                 threading.Timer(0.2, self.tray.quit).start()
             elif self.path == "/frame":

@@ -126,6 +126,7 @@ class Tray:
         self.hidden_at = 0
         self.cap = 31     # Chromium title bar height in CSS px, until measured
         self.bar = None   # measured title bar height in device px
+        self.placed = None  # (geometry key, window rect) of the last place()
         register_identity()
         self.app_icon = u32.LoadImageW(None, os.path.join(HERE, "icon.ico"), 1, 64, 64, 0x10)  # for notifications
         self._proc = WNDPROC(self.wndproc)  # keep a reference or ctypes frees the callback
@@ -226,12 +227,19 @@ class Tray:
 
     @staticmethod
     def strip(h):
-        """Make the browser window a bare popup. Re-done on every show: Chromium restores its styles on its own."""
-        style = u32.GetWindowLongPtrW(h, -16) & ~(0x00C00000 | 0x00040000 | 0x00020000 | 0x00010000)
-        u32.SetWindowLongPtrW(h, -16, style)  # no caption, sizing border, min/max
-        ex = (u32.GetWindowLongPtrW(h, -20) | 0x80) & ~0x40000  # TOOLWINDOW, not APPWINDOW: no taskbar button
-        u32.SetWindowLongPtrW(h, -20, ex)
+        """Make the browser window a bare popup. Checked on every show (Chromium may restore its styles), but
+        only written when something differs: each write repaints the frame, which shows as a flicker.
+        -> True when the styles had to change."""
+        style = u32.GetWindowLongPtrW(h, -16)
+        ex = u32.GetWindowLongPtrW(h, -20)
+        want_style = style & ~(0x00C00000 | 0x00040000 | 0x00020000 | 0x00010000)  # no caption, sizing border, min/max
+        want_ex = (ex | 0x80) & ~0x40000  # TOOLWINDOW, not APPWINDOW: no taskbar button
+        if (style, ex) == (want_style, want_ex):
+            return False
+        u32.SetWindowLongPtrW(h, -16, want_style)
+        u32.SetWindowLongPtrW(h, -20, want_ex)
         dwm.DwmSetWindowAttribute(h, 2, C.byref(C.c_int(1)), 4)  # NCRENDERING_POLICY=DISABLED: region applies
+        return True
 
     def launch(self):
         with self.launching:
@@ -249,8 +257,9 @@ class Tray:
                     return h
             return None
 
-    def place(self, h):
-        """Put the page (w x h CSS px) above the tray icon; push the browser title bar up and clip it off."""
+    def place(self, h, force=False):
+        """Put the page (w x h CSS px) above the tray icon; push the browser title bar up and clip it off.
+        A no-op when the window already sits exactly there: moving or re-clipping it again is what flickers."""
         dpr = u32.GetDpiForWindow(h) / 96 or 1
         w, gap = round(self.size[0] * dpr), round(12 * dpr)
         work = W.RECT()
@@ -265,10 +274,16 @@ class Tray:
             x = work.right - w - gap
         x = max(work.left + gap, min(x, work.right - w - gap))
         y = work.top + gap if 0 < icon.bottom <= work.top else work.bottom - hgt - gap
+        key = (x, y, w, hgt, top, dpr)
+        r = W.RECT()
+        u32.GetWindowRect(h, C.byref(r))
+        if not force and self.placed == (key, (r.left, r.top, r.right, r.bottom)):
+            return
         # Chromium keeps a few px of frame around its client area: place once, measure the insets, place again.
         ox = oy = dx = dy = 0
         for _ in range(2):
-            u32.SetWindowPos(h, -1, x - ox, y - top - oy, w + dx, hgt + top + dy, 0x0010 | 0x0020)  # TOPMOST, NOACTIVATE|FRAMECHANGED
+            flags = 0x0010 | (0x0020 if force else 0)  # NOACTIVATE, FRAMECHANGED only after a style change
+            u32.SetWindowPos(h, -1, x - ox, y - top - oy, w + dx, hgt + top + dy, flags)  # TOPMOST
             r, c, o = W.RECT(), W.RECT(), W.POINT()
             u32.GetWindowRect(h, C.byref(r))
             u32.GetClientRect(h, C.byref(c))
@@ -284,6 +299,8 @@ class Tray:
             u32.SetWindowRgn(h, gdi.CreateRoundRectRgn(*box, rad, rad), True)
         clip()
         threading.Timer(0.25, clip).start()  # Chromium resets the region after it handles the resize
+        u32.GetWindowRect(h, C.byref(r))
+        self.placed = (key, (r.left, r.top, r.right, r.bottom))
 
     def set_cap(self, cap, inner=0):
         """The page reports its viewport height: title bar = client area height - viewport height, exact in
@@ -296,15 +313,14 @@ class Tray:
             if 0 <= bar < 120 and bar != self.bar:
                 self.bar = bar
                 if u32.IsWindowVisible(h):
-                    self.place(h)
+                    self.place(h, force=True)
         elif 0 < cap < 80:
             self.cap = cap
 
     def show(self):
         h = self.find_popup() or self.launch()
         if h:
-            self.strip(h)
-            self.place(h)
+            self.place(h, force=self.strip(h))  # still hidden here: any move happens off screen
             u32.ShowWindow(h, 5)  # SW_SHOW
             u32.SetForegroundWindow(h)
 

@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-07
+
+### Fixed
+- Links in the panel (GitHub) open in the default browser instead of an invisible window of the panel's
+  own browser. Only the project's own URLs are accepted.
+- Windows: no flicker when opening the panel. The window is re-placed, re-styled and re-clipped only when
+  something actually changed.
+
 ## [0.2.1] - 2026-11-07
 
 ### Fixed
@@ -47,7 +55,8 @@ All notable changes to this project are documented here. The format follows
 - Linux (BlueZ) and macOS (IOBluetooth, experimental) transports; pystray status-bar icon.
 - GitHub Actions: tests on three platforms, PyInstaller builds attached to tagged releases.
 
-[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.0...v0.1.1

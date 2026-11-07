@@ -504,6 +504,11 @@ $("#cfg-autostart").onclick = () => cfg("autostart", !ui.autostart);
 $("#cfg-tray_battery").onclick = () => cfg("tray_battery", !ui.tray_battery);
 $("#cfg-low_battery").onchange = e => cfg("low_battery", +e.target.value);
 $("#quit").onclick = () => post("/quit");
+document.addEventListener("click", e => {  // external links: the user's default browser, not this window
+  const a = e.target.closest("a[target=_blank]"); if (!a) return;
+  e.preventDefault();
+  post("/open", { url: a.href });
+});
 
 window.addEventListener("blur", () => { if (ui.popup && !document.hasFocus()) post("/hide"); });
 const reportFrame = () => post("/frame", { cap: window.outerHeight - window.innerHeight, inner: window.innerHeight });

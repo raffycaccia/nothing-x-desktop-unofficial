@@ -102,6 +102,17 @@ def test_window_endpoints(server):
         get(url + "/nope")
 
 
+def test_open_link_uses_default_browser_and_is_restricted(server, monkeypatch):
+    url, _, _ = server
+    opened = []
+    monkeypatch.setattr(A.webbrowser, "open", opened.append)
+    repo = "https://github.com/raffycaccia/nothing-x-desktop-unofficial"
+    assert post(url + "/open", {"url": repo})[0] == 204
+    assert post(url + "/open", {"url": "https://evil.example/x"})[0] == 400
+    assert post(url + "/open", {"url": "file:///C:/Windows/system32/calc.exe"})[0] == 400
+    assert opened == [repo]
+
+
 def test_settings_round_trip(server, tmp_path):
     url, _, _ = server
     status, body = post(url + "/settings", {"lang": "it", "low_battery": 15, "autostart": True})
