@@ -24,6 +24,31 @@ u32.SetWindowPos.argtypes = [W.HWND, W.HWND, C.c_int, C.c_int, C.c_int, C.c_int,
 u32.CreateIconFromResourceEx.restype = W.HICON
 u32.CreateIconFromResourceEx.argtypes = [C.c_char_p, W.DWORD, W.BOOL, W.DWORD, C.c_int, C.c_int, W.UINT]
 u32.LoadImageW.restype = W.HANDLE
+# Every handle-returning call needs a pointer-wide restype: the ctypes default (c_int) truncates 64-bit
+# handles, which works only while Windows happens to hand out low addresses and crashes otherwise.
+k32 = C.windll.kernel32
+k32.GetModuleHandleW.restype = W.HMODULE
+k32.GetModuleHandleW.argtypes = [W.LPCWSTR]
+u32.RegisterClassW.restype = W.ATOM
+u32.CreateWindowExW.restype = W.HWND
+u32.CreateWindowExW.argtypes = [W.DWORD, W.LPCWSTR, W.LPCWSTR, W.DWORD, C.c_int, C.c_int, C.c_int, C.c_int,
+                                W.HWND, W.HMENU, W.HINSTANCE, W.LPVOID]
+u32.CreatePopupMenu.restype = W.HMENU
+u32.AppendMenuW.argtypes = [W.HMENU, W.UINT, C.c_size_t, W.LPCWSTR]
+u32.TrackPopupMenu.argtypes = [W.HMENU, W.UINT, C.c_int, C.c_int, C.c_int, W.HWND, W.LPVOID]
+u32.DestroyMenu.argtypes = [W.HMENU]
+u32.DestroyIcon.argtypes = [W.HICON]
+u32.LoadImageW.argtypes = [W.HINSTANCE, W.LPCWSTR, W.UINT, C.c_int, C.c_int, W.UINT]
+u32.GetWindowTextW.argtypes = [W.HWND, W.LPWSTR, C.c_int]
+u32.IsWindow.argtypes = u32.IsWindowVisible.argtypes = [W.HWND]
+u32.ShowWindow.argtypes = [W.HWND, C.c_int]
+u32.SetForegroundWindow.argtypes = [W.HWND]
+u32.PostMessageW.argtypes = [W.HWND, W.UINT, W.WPARAM, W.LPARAM]
+u32.GetWindowLongPtrW.argtypes = [W.HWND, C.c_int]
+u32.GetDpiForWindow.argtypes = [W.HWND]
+u32.GetWindowRect.argtypes = u32.GetClientRect.argtypes = [W.HWND, C.POINTER(W.RECT)]
+u32.ClientToScreen.argtypes = [W.HWND, C.POINTER(W.POINT)]
+dwm.DwmSetWindowAttribute.argtypes = [W.HWND, W.DWORD, W.LPVOID, W.DWORD]
 gdi.CreateRoundRectRgn.restype = W.HRGN
 u32.SetWindowRgn.argtypes = [W.HWND, W.HRGN, W.BOOL]
 WM_TRAY, WM_LBUTTONUP, WM_RBUTTONUP = 0x8001, 0x0202, 0x0205
@@ -105,7 +130,7 @@ class Tray:
         self.app_icon = u32.LoadImageW(None, os.path.join(HERE, "icon.ico"), 1, 64, 64, 0x10)  # for notifications
         self._proc = WNDPROC(self.wndproc)  # keep a reference or ctypes frees the callback
         wc = WNDCLASSW(lpfnWndProc=self._proc, lpszClassName="NothingXTray",
-                       hInstance=C.windll.kernel32.GetModuleHandleW(None))
+                       hInstance=k32.GetModuleHandleW(None))
         u32.RegisterClassW(C.byref(wc))
         self.hwnd = u32.CreateWindowExW(0, "NothingXTray", "NothingXTray", 0, 0, 0, 0, 0, None, None, wc.hInstance, None)
         self.nid = NOTIFYICONDATAW(cbSize=C.sizeof(NOTIFYICONDATAW), hWnd=self.hwnd, uID=1,

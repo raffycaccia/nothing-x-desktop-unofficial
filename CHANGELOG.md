@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-07
+
+### Fixed
+- Windows: the app could crash at startup (access violation) and never show up, including when launched
+  at login. Win32 handles were truncated to 32 bits; every handle-returning call now declares a
+  pointer-wide type, with a regression test.
+
 ## [0.2.0] - 2026-11-06
 
 ### Added
@@ -40,7 +47,8 @@ All notable changes to this project are documented here. The format follows
 - Linux (BlueZ) and macOS (IOBluetooth, experimental) transports; pystray status-bar icon.
 - GitHub Actions: tests on three platforms, PyInstaller builds attached to tagged releases.
 
-[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/releases/tag/v0.1.0

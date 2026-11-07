@@ -1,5 +1,6 @@
 """HTTP/SSE server, settings and the link state machine, without Bluetooth hardware."""
 import json
+import sys
 import threading
 import urllib.error
 import urllib.request
@@ -226,3 +227,14 @@ def test_window_watch_notifies_on_low_battery(tmp_path, monkeypatch):
             break
         import time; time.sleep(0.05)
     assert len(sent) == 1 and "12%" in sent[0][1]
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 only")
+def test_win32_handles_are_pointer_wide():
+    """Regression: handle-returning Win32 calls left at the ctypes default (32-bit int) truncate 64-bit
+    handles and crash the tray at startup whenever Windows hands out a high address."""
+    import ctypes
+    from nothingx import tray_win as T
+    for fn in (T.k32.GetModuleHandleW, T.u32.CreateWindowExW, T.u32.CreatePopupMenu, T.u32.LoadImageW,
+               T.u32.CreateIconFromResourceEx, T.gdi.CreateRoundRectRgn):
+        assert ctypes.sizeof(fn.restype) == ctypes.sizeof(ctypes.c_void_p), fn.__name__
