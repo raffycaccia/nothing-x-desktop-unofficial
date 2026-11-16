@@ -1,3 +1,3 @@
 """Nothing X Desktop (unofficial): control Nothing and CMF earbuds from the desktop."""
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 APP_NAME = "Nothing X Desktop (unofficial)"

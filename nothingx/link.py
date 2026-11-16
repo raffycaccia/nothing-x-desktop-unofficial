@@ -205,6 +205,7 @@ class Buds:
 
     POLL_S = 30         # battery pushes are not reliable: poll too
     RETRY_S = 10        # when nothing is reachable
+    PROBE_EVERY_S = 300  # full channel rescan, at most this often per device
 
     def __init__(self, conf_path, start=True):
         self.state = {"connected": False}
@@ -213,6 +214,7 @@ class Buds:
         self.sock = None
         self.model = None
         self.conf_path = conf_path
+        self.probed = {}  # mac -> time of the last full channel scan
         try:
             with open(conf_path) as f:
                 self.conf = json.load(f)
@@ -236,11 +238,19 @@ class Buds:
             if s and not hello(s):  # cached channel no longer the right one
                 s.close()
                 s = None
-            if not s and (c := probe(mac)).get("ntapp"):  # first run, or the channel moved
-                self.conf[mac] = c
-                os.makedirs(os.path.dirname(self.conf_path), exist_ok=True)
-                with open(self.conf_path, "w") as f:
-                    json.dump(self.conf, f)
+            # A cached channel that does not answer is usually a busy or sleeping device, not a moved channel:
+            # rescanning all 30 channels every retry takes ~90 s and keeps the Bluetooth stack busy, so a full
+            # scan runs on first contact and then at most every PROBE_EVERY_S per device.
+            due = time.time() - self.probed.get(mac, 0) > self.PROBE_EVERY_S
+            if not s and ("ntapp" not in c or due):
+                self.probed[mac] = time.time()
+                c = probe(mac)
+            if not s and c.get("ntapp"):
+                if c != self.conf.get(mac):  # first run, or the channel moved
+                    self.conf[mac] = c
+                    os.makedirs(os.path.dirname(self.conf_path), exist_ok=True)
+                    with open(self.conf_path, "w") as f:
+                        json.dump(self.conf, f)
                 s = rfcomm(mac, c["ntapp"], 4)
             if s:
                 return s, Model(c.get("sku", ""), name)

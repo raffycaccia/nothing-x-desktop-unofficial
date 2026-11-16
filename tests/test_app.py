@@ -206,6 +206,24 @@ def test_low_battery_notifies_once_and_rearms():
     assert A.LowBattery.message("X", [("R", 9)], "en")[1] == "X: right 9%. Time to charge."
 
 
+def test_busy_cached_channel_does_not_rescan_every_retry(tmp_path, monkeypatch):
+    from nothingx import link
+    conf = tmp_path / "c.json"
+    conf.write_text('{"AA": {"ntapp": 16, "sku": "2B353E"}}')
+    probes = []
+    monkeypatch.setattr(link, "paired_devices", lambda: [("AA", "CMF Buds Pro 2")])
+    monkeypatch.setattr(link, "rfcomm", lambda mac, ch, t: None)          # everything times out
+    monkeypatch.setattr(link, "probe", lambda mac: probes.append(mac) or {})
+    buds = Buds(str(conf), start=False)
+    for _ in range(5):
+        assert buds.connect() == (None, None)
+    assert probes == ["AA"]                                                # one scan, not five
+    assert json.loads(conf.read_text())["AA"]["ntapp"] == 16             # cache kept
+    buds.probed["AA"] -= Buds.PROBE_EVERY_S + 1
+    buds.connect()
+    assert probes == ["AA", "AA"]
+
+
 def test_main_version_flag(capsys):
     assert A.main(["--version"]) == 0
     assert "Nothing X Desktop" in capsys.readouterr().out

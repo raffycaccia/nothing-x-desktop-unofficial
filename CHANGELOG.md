@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-16
+
+### Fixed
+- Reconnection after the earbuds' control channel stops answering for a while: the app no longer rescans
+  all 30 RFCOMM channels on every retry (about 90 s each, keeping the Bluetooth stack busy). It retries
+  the known channel every 10 s and runs a full scan at most every 5 minutes.
+
 ## [0.2.2] - 2026-11-07
 
 ### Fixed
@@ -55,7 +62,8 @@ All notable changes to this project are documented here. The format follows
 - Linux (BlueZ) and macOS (IOBluetooth, experimental) transports; pystray status-bar icon.
 - GitHub Actions: tests on three platforms, PyInstaller builds attached to tagged releases.
 
-[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/raffycaccia/nothing-x-desktop-unofficial/compare/v0.1.1...v0.2.0
